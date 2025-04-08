@@ -1,7 +1,7 @@
+
 import { v4 as uuidv4 } from 'uuid';
-import { Document, SpreadsheetDocument } from '@/types/document';
+import { Document } from '@/types/document';
 import { toast } from 'sonner';
-import { SpreadsheetData } from './spreadsheetService';
 
 // Constants
 const DOCUMENTS_STORAGE_KEY = 'docuscan-documents';
@@ -96,20 +96,4 @@ export const processNewDocument = async (
     toast.error('Failed to process document');
     throw error;
   }
-};
-
-// Create a document entry for a spreadsheet
-export const createSpreadsheetDocument = (spreadsheet: SpreadsheetData): SpreadsheetDocument => {
-  const spreadsheetDoc: SpreadsheetDocument = {
-    id: uuidv4(),
-    title: spreadsheet.title,
-    preview: '', // We'll use a placeholder icon
-    extractedText: `Spreadsheet with ${spreadsheet.rows} rows and ${spreadsheet.columns} columns`,
-    createdAt: spreadsheet.createdAt,
-    type: 'spreadsheet',
-    spreadsheetId: spreadsheet.id
-  };
-  
-  saveDocument(spreadsheetDoc);
-  return spreadsheetDoc;
 };

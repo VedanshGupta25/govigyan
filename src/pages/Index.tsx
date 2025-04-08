@@ -2,14 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Layout/Header';
 import { Button } from '@/components/ui/button';
-import { Camera, Upload, FileSpreadsheet, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Camera, Upload } from 'lucide-react';
 import CameraCapture from '@/components/CameraCapture';
 import DocumentCard from '@/components/DocumentCard';
 import DocumentDetail from '@/components/DocumentDetail';
 import EmptyState from '@/components/EmptyState';
 import FileUpload from '@/components/FileUpload';
-import { Document, SpreadsheetDocument } from '@/types/document';
+import { Document } from '@/types/document';
 import { 
   processNewDocument, 
   getDocuments, 
@@ -19,28 +18,22 @@ import {
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { getSpreadsheets, createNewSpreadsheet } from '@/services/spreadsheetService';
 
 const Index = () => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [spreadsheetDocuments, setSpreadsheetDocuments] = useState<SpreadsheetDocument[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('recent');
 
+  // Load documents on initial render
   useEffect(() => {
     loadDocuments();
   }, []);
 
   const loadDocuments = () => {
-    // Load regular documents
-    const loadedDocuments = getDocuments().filter(doc => !doc.type || doc.type === 'document');
+    const loadedDocuments = getDocuments();
     setDocuments(loadedDocuments);
-    
-    // Load spreadsheet documents
-    const spreadsheetDocs = getDocuments().filter(doc => doc.type === 'spreadsheet') as SpreadsheetDocument[];
-    setSpreadsheetDocuments(spreadsheetDocs);
   };
 
   const handleCapture = async (imageData: string) => {
@@ -65,6 +58,7 @@ const Index = () => {
     toast.info('Processing document...', { duration: 3000 });
     
     try {
+      // Convert file to base64
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result as string;
@@ -100,12 +94,7 @@ const Index = () => {
     toast.success('Document deleted');
   };
 
-  const handleCreateNewSpreadsheet = () => {
-    const newSpreadsheet = createNewSpreadsheet();
-    toast.success('New spreadsheet created');
-    loadDocuments(); // Refresh to show the new spreadsheet
-  };
-
+  // Render document detail view if a document is selected
   if (selectedDocumentId) {
     const selectedDocument = documents.find(doc => doc.id === selectedDocumentId);
     if (selectedDocument) {
@@ -124,9 +113,12 @@ const Index = () => {
     }
   }
 
-  const filteredDocuments = [...documents, ...spreadsheetDocuments].sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-  );
+  // Filter documents based on active tab
+  const filteredDocuments = documents.filter(doc => {
+    if (activeTab === 'recent') return true;
+    // Add filtering logic for other tabs if needed
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -146,18 +138,14 @@ const Index = () => {
               Scan
             </Button>
             <FileUpload onFileSelected={handleFileUpload} />
-            <Button variant="outline" size="sm" onClick={handleCreateNewSpreadsheet}>
-              <Plus className="h-4 w-4 mr-2" />
-              Spreadsheet
-            </Button>
           </div>
         </div>
         
         <Tabs defaultValue="recent" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="recent">Recent</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="spreadsheets">Spreadsheets</TabsTrigger>
+            <TabsTrigger value="favorites">Favorites</TabsTrigger>
+            <TabsTrigger value="all">All Documents</TabsTrigger>
           </TabsList>
           
           <TabsContent value="recent" className="animate-fade-in">
@@ -179,8 +167,6 @@ const Index = () => {
                     extractedText={doc.extractedText}
                     createdAt={doc.createdAt}
                     onClick={handleDocumentClick}
-                    type={doc.type || 'document'}
-                    spreadsheetId={(doc as SpreadsheetDocument).spreadsheetId}
                   />
                 ))}
               </div>
@@ -189,10 +175,14 @@ const Index = () => {
             )}
           </TabsContent>
           
-          <TabsContent value="documents">
-            {documents.length > 0 ? (
+          <TabsContent value="favorites">
+            <EmptyState onScan={() => setIsCapturing(true)} />
+          </TabsContent>
+          
+          <TabsContent value="all">
+            {filteredDocuments.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {documents.map(doc => (
+                {filteredDocuments.map(doc => (
                   <DocumentCard
                     key={doc.id}
                     id={doc.id}
@@ -206,36 +196,6 @@ const Index = () => {
               </div>
             ) : (
               <EmptyState onScan={() => setIsCapturing(true)} />
-            )}
-          </TabsContent>
-          
-          <TabsContent value="spreadsheets">
-            {spreadsheetDocuments.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {spreadsheetDocuments.map(doc => (
-                  <DocumentCard
-                    key={doc.id}
-                    id={doc.id}
-                    title={doc.title}
-                    preview={doc.preview}
-                    extractedText={doc.extractedText}
-                    createdAt={doc.createdAt}
-                    onClick={handleDocumentClick}
-                    type="spreadsheet"
-                    spreadsheetId={doc.spreadsheetId}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <FileSpreadsheet className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-gray-700 mb-2">No spreadsheets yet</h3>
-                <p className="text-gray-500 mb-6">Create your first spreadsheet to see it here</p>
-                <Button onClick={handleCreateNewSpreadsheet}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Spreadsheet
-                </Button>
-              </div>
             )}
           </TabsContent>
         </Tabs>
