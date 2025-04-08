@@ -1,10 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Toolbar from './Toolbar';
 import Cell from './Cell';
 import SpreadsheetHeader from './SpreadsheetHeader';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 interface SpreadsheetProps {
   initialRows?: number;
@@ -24,6 +27,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
   const [data, setData] = useState<CellData[][]>([]);
   const [selectedCell, setSelectedCell] = useState<{ row: number, col: number } | null>(null);
   const [copiedCell, setCopiedCell] = useState<{ value: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize data grid
   useEffect(() => {
@@ -141,11 +145,71 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     toast.success("Cell pasted");
   };
 
+  // Handle import CSV
+  const handleImport = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const processImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const csvData = event.target?.result as string;
+        const rows = csvData.split('\n').filter(row => row.trim() !== '');
+        const parsedData: CellData[][] = [];
+
+        const maxColumns = Math.max(...rows.map(row => row.split(',').length));
+        const actualColumns = Math.min(maxColumns, 26); // Limit to 26 columns (A-Z)
+        
+        rows.forEach(row => {
+          const cells = row.split(',');
+          const rowData: CellData[] = [];
+          
+          for (let i = 0; i < actualColumns; i++) {
+            rowData.push({ value: cells[i] ? cells[i].replace(/^"|"$/g, '') : '' });
+          }
+          
+          parsedData.push(rowData);
+        });
+
+        setData(parsedData);
+        setRows(parsedData.length);
+        setColumns(actualColumns);
+        toast.success("CSV data imported successfully");
+      } catch (error) {
+        toast.error("Failed to import CSV data");
+        console.error("CSV import error:", error);
+      }
+
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+
+    reader.onerror = () => {
+      toast.error("Failed to read the file");
+    };
+
+    reader.readAsText(file);
+  };
+
   // Export to CSV
   const handleExport = () => {
     // Convert data to CSV
     const csvContent = data.map(row => 
-      row.map(cell => cell.value).join(',')
+      row.map(cell => {
+        // Escape commas and quotes
+        const value = cell.value || '';
+        return value.includes(',') || value.includes('"') 
+          ? `"${value.replace(/"/g, '""')}"` 
+          : value;
+      }).join(',')
     ).join('\n');
     
     // Create file and download
@@ -160,7 +224,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
   };
 
   return (
-    <div className="flex flex-col border border-gray-300 rounded-md shadow-sm h-full">
+    <div className="flex flex-col border border-gray-300 rounded-md shadow-sm h-full bg-white">
       <Toolbar 
         onAddRow={handleAddRow}
         onAddColumn={handleAddColumn}
@@ -168,6 +232,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
         onDeleteColumn={handleDeleteColumn}
         onCopy={handleCopy}
         onPaste={handlePaste}
+        onImport={handleImport}
         onExport={handleExport}
         canDeleteRow={rows > 1 && selectedCell !== null}
         canDeleteColumn={columns > 1 && selectedCell !== null}
@@ -202,6 +267,15 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
           </div>
         </div>
       </ScrollArea>
+      
+      {/* Hidden file input for CSV import */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept=".csv"
+        style={{ display: 'none' }}
+        onChange={processImport}
+      />
     </div>
   );
 };
