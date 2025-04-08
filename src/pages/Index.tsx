@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Layout/Header';
 import { Button } from '@/components/ui/button';
-import { Camera, Upload } from 'lucide-react';
+import { Camera, Upload, FileSpreadsheet } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import CameraCapture from '@/components/CameraCapture';
 import DocumentCard from '@/components/DocumentCard';
 import DocumentDetail from '@/components/DocumentDetail';
@@ -26,7 +26,6 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('recent');
 
-  // Load documents on initial render
   useEffect(() => {
     loadDocuments();
   }, []);
@@ -58,7 +57,6 @@ const Index = () => {
     toast.info('Processing document...', { duration: 3000 });
     
     try {
-      // Convert file to base64
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result as string;
@@ -94,7 +92,6 @@ const Index = () => {
     toast.success('Document deleted');
   };
 
-  // Render document detail view if a document is selected
   if (selectedDocumentId) {
     const selectedDocument = documents.find(doc => doc.id === selectedDocumentId);
     if (selectedDocument) {
@@ -113,10 +110,8 @@ const Index = () => {
     }
   }
 
-  // Filter documents based on active tab
   const filteredDocuments = documents.filter(doc => {
     if (activeTab === 'recent') return true;
-    // Add filtering logic for other tabs if needed
     return true;
   });
 
@@ -138,6 +133,12 @@ const Index = () => {
               Scan
             </Button>
             <FileUpload onFileSelected={handleFileUpload} />
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/spreadsheet">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Spreadsheet
+              </Link>
+            </Button>
           </div>
         </div>
         

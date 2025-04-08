@@ -90,4 +90,29 @@
   .doc-card-content {
     @apply p-4;
   }
+  
+  /* Spreadsheet specific styles */
+  .spreadsheet-container {
+    @apply bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden;
+  }
+  
+  .spreadsheet-header-cell {
+    @apply bg-secondary/20 border border-gray-300 flex items-center justify-center font-medium text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/30;
+  }
+  
+  .spreadsheet-cell {
+    @apply border border-gray-200 min-w-[80px] h-8 px-2 flex items-center bg-white hover:bg-blue-50 focus-within:bg-blue-50 focus-within:ring-1 focus-within:ring-blue-500 transition-colors;
+  }
+  
+  .spreadsheet-cell-selected {
+    @apply ring-2 ring-blue-500 ring-inset bg-blue-50;
+  }
+  
+  .toolbar-button {
+    @apply rounded text-sm font-medium transition-colors hover:bg-gray-100 flex items-center gap-1;
+  }
+  
+  .table-glass-effect {
+    @apply backdrop-blur-sm bg-white/90;
+  }
 }
