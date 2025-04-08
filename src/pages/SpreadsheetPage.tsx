@@ -4,36 +4,51 @@ import Header from '@/components/Layout/Header';
 import Spreadsheet from '@/components/SpreadsheetTable/Spreadsheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, FileSpreadsheet, Table } from 'lucide-react';
+import { Save, FileSpreadsheet, Table, Info } from 'lucide-react';
 import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarSeparator, MenubarShortcut, MenubarTrigger } from '@/components/ui/menubar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const SpreadsheetPage = () => {
   const [spreadsheetName, setSpreadsheetName] = useState('Untitled Spreadsheet');
   
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col">
       <Header />
       
-      <div className="container mx-auto px-4 py-2 flex-1 flex flex-col">
-        <div className="flex flex-col space-y-2 mb-2">
+      <div className="container mx-auto px-4 py-4 flex-1 flex flex-col max-w-7xl">
+        <div className="flex flex-col space-y-2 mb-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg shadow-sm border border-gray-100">
               <FileSpreadsheet className="h-5 w-5 text-secondary" />
               <Input
                 value={spreadsheetName}
                 onChange={(e) => setSpreadsheetName(e.target.value)}
-                className="font-semibold text-lg border-transparent focus:border-gray-300 focus-visible:ring-0 h-9 px-2 py-1"
+                className="font-semibold text-lg border-transparent focus:border-gray-300 focus-visible:ring-0 h-9 px-2 py-1 min-w-[240px]"
               />
-              <Button variant="outline" size="sm" className="ml-2">
-                <Save className="h-4 w-4 mr-2" />
-                Save
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" className="ml-2 border-secondary/20 text-secondary hover:text-secondary-foreground hover:bg-secondary/20">
+                    <Save className="h-4 w-4 mr-2" />
+                    Save
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Save spreadsheet</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            
+            <div className="hidden md:flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="text-muted-foreground">
+                <Info className="h-4 w-4 mr-1" />
+                Help
               </Button>
             </div>
           </div>
           
-          <Menubar className="border-none bg-transparent p-0 h-auto">
+          <Menubar className="border-none bg-white/80 backdrop-blur-sm rounded-lg shadow-sm p-1 h-auto">
             <MenubarMenu>
-              <MenubarTrigger className="font-normal text-sm px-2 py-1 data-[state=open]:bg-accent/50">File</MenubarTrigger>
+              <MenubarTrigger className="font-normal text-sm px-3 py-1.5 rounded-md data-[state=open]:bg-accent/50">File</MenubarTrigger>
               <MenubarContent>
                 <MenubarItem>New<MenubarShortcut>⌘N</MenubarShortcut></MenubarItem>
                 <MenubarItem>Open<MenubarShortcut>⌘O</MenubarShortcut></MenubarItem>
@@ -45,7 +60,7 @@ const SpreadsheetPage = () => {
             </MenubarMenu>
             
             <MenubarMenu>
-              <MenubarTrigger className="font-normal text-sm px-2 py-1 data-[state=open]:bg-accent/50">Edit</MenubarTrigger>
+              <MenubarTrigger className="font-normal text-sm px-3 py-1.5 rounded-md data-[state=open]:bg-accent/50">Edit</MenubarTrigger>
               <MenubarContent>
                 <MenubarItem>Cut<MenubarShortcut>⌘X</MenubarShortcut></MenubarItem>
                 <MenubarItem>Copy<MenubarShortcut>⌘C</MenubarShortcut></MenubarItem>
@@ -57,7 +72,7 @@ const SpreadsheetPage = () => {
             </MenubarMenu>
             
             <MenubarMenu>
-              <MenubarTrigger className="font-normal text-sm px-2 py-1 data-[state=open]:bg-accent/50">View</MenubarTrigger>
+              <MenubarTrigger className="font-normal text-sm px-3 py-1.5 rounded-md data-[state=open]:bg-accent/50">View</MenubarTrigger>
               <MenubarContent>
                 <MenubarItem>Formulas</MenubarItem>
                 <MenubarItem>Grid lines</MenubarItem>
@@ -66,7 +81,7 @@ const SpreadsheetPage = () => {
             </MenubarMenu>
             
             <MenubarMenu>
-              <MenubarTrigger className="font-normal text-sm px-2 py-1 data-[state=open]:bg-accent/50">Data</MenubarTrigger>
+              <MenubarTrigger className="font-normal text-sm px-3 py-1.5 rounded-md data-[state=open]:bg-accent/50">Data</MenubarTrigger>
               <MenubarContent>
                 <MenubarItem>Sort</MenubarItem>
                 <MenubarItem>Filter</MenubarItem>
@@ -77,20 +92,24 @@ const SpreadsheetPage = () => {
           </Menubar>
         </div>
         
-        <div className="bg-white rounded-lg overflow-hidden shadow-md flex-1 border border-gray-200">
+        <div className="spreadsheet-container flex-1">
           <Spreadsheet initialRows={15} initialColumns={10} />
         </div>
         
-        <div className="text-xs text-muted-foreground py-2 px-1">
-          <span className="mr-4">Cells: 150</span>
+        <div className="text-xs text-muted-foreground py-3 px-3 bg-white/80 backdrop-blur-sm mt-4 rounded-lg shadow-sm border border-gray-100 flex justify-between">
+          <span>Cells: 150</span>
           <span>Last modified: {new Date().toLocaleDateString()}</span>
         </div>
       </div>
       
-      <footer className="bg-white border-t border-gray-200 py-3 text-center text-sm text-gray-500">
+      <footer className="bg-white/80 backdrop-blur-sm border-t border-gray-200 py-3 text-center text-sm text-gray-500">
         <div className="container mx-auto flex items-center justify-center">
           <Table className="h-4 w-4 mr-2 text-secondary" />
-          DocuScan &copy; {new Date().getFullYear()} | Spreadsheet Edition
+          <span className="font-medium">DocuScan</span>
+          <span className="mx-1">•</span>
+          <span className="text-muted-foreground">Spreadsheet Edition</span>
+          <span className="mx-1">•</span>
+          <span className="text-muted-foreground">{new Date().getFullYear()}</span>
         </div>
       </footer>
     </div>
