@@ -12,15 +12,15 @@ interface DocumentDetailProps {
   onDelete: (id: string) => void;
 }
 
-const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, onBack, onDelete }) => {
-  const timeAgo = formatDistanceToNow(document.createdAt, { addSuffix: true });
+const DocumentDetail: React.FC<DocumentDetailProps> = ({ document: documentItem, onBack, onDelete }) => {
+  const timeAgo = formatDistanceToNow(documentItem.createdAt, { addSuffix: true });
   
   const handleDownload = () => {
     // Create a text file with the extracted content
     const element = document.createElement('a');
-    const file = new Blob([document.extractedText], {type: 'text/plain'});
+    const file = new Blob([documentItem.extractedText], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
-    element.download = `${document.title}.txt`;
+    element.download = `${documentItem.title}.txt`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -38,13 +38,13 @@ const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, onBack, onDel
       
       <div className="bg-white rounded-lg overflow-hidden shadow-md">
         <div className="p-4">
-          <h2 className="text-xl font-semibold text-navy-900">{document.title}</h2>
+          <h2 className="text-xl font-semibold text-navy-900">{documentItem.title}</h2>
         </div>
         
         <div className="aspect-[3/4] bg-gray-100 relative">
           <img 
-            src={document.preview} 
-            alt={document.title}
+            src={documentItem.preview} 
+            alt={documentItem.title}
             className="w-full h-full object-contain"
           />
         </div>
@@ -52,7 +52,7 @@ const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, onBack, onDel
         <div className="p-4">
           <h3 className="text-lg font-medium text-navy-700 mb-2">Extracted Text</h3>
           <div className="bg-gray-50 p-3 rounded border border-gray-200 max-h-80 overflow-y-auto">
-            <p className="text-gray-800 whitespace-pre-wrap">{document.extractedText}</p>
+            <p className="text-gray-800 whitespace-pre-wrap">{documentItem.extractedText}</p>
           </div>
         </div>
         
@@ -71,7 +71,7 @@ const DocumentDetail: React.FC<DocumentDetailProps> = ({ document, onBack, onDel
             variant="outline" 
             size="sm" 
             className="text-red-500 hover:text-red-700 hover:border-red-300"
-            onClick={() => onDelete(document.id)}
+            onClick={() => onDelete(documentItem.id)}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Delete
