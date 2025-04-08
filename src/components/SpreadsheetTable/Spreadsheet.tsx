@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Toolbar from './Toolbar';
 import Cell from './Cell';
 import SpreadsheetHeader from './SpreadsheetHeader';
@@ -8,10 +7,18 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { saveSpreadsheet, SpreadsheetData } from '@/services/spreadsheetService';
+import { createSpreadsheetDocument } from '@/services/documentService';
+import { useNavigate } from 'react-router-dom';
+import { Save } from 'lucide-react';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface SpreadsheetProps {
   initialRows?: number;
   initialColumns?: number;
+  initialData?: SpreadsheetData | null;
+  spreadsheetTitle?: string;
 }
 
 interface CellData {
@@ -20,23 +27,58 @@ interface CellData {
 
 const Spreadsheet: React.FC<SpreadsheetProps> = ({ 
   initialRows = 10, 
-  initialColumns = 8 
+  initialColumns = 8,
+  initialData = null,
+  spreadsheetTitle = `Spreadsheet ${new Date().toLocaleDateString()}`
 }) => {
-  const [rows, setRows] = useState(initialRows);
-  const [columns, setColumns] = useState(initialColumns);
-  const [data, setData] = useState<CellData[][]>([]);
+  const [rows, setRows] = useState(initialData?.rows || initialRows);
+  const [columns, setColumns] = useState(initialData?.columns || initialColumns);
+  const [data, setData] = useState<CellData[][]>(initialData?.data || []);
   const [selectedCell, setSelectedCell] = useState<{ row: number, col: number } | null>(null);
   const [copiedCell, setCopiedCell] = useState<{ value: string } | null>(null);
+  const [title, setTitle] = useState(initialData?.title || spreadsheetTitle);
+  const [spreadsheetId, setSpreadsheetId] = useState<string>(initialData?.id || '');
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [lastSaved, setLastSaved] = useState<Date | null>(initialData?.lastModified || null);
+  const [needsSaving, setNeedsSaving] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoSaveTimerRef = useRef<number | null>(null);
+  const navigate = useNavigate();
 
   // Initialize data grid
   useEffect(() => {
-    // Initialize with empty data
-    const initialData = Array.from({ length: rows }, () => 
-      Array.from({ length: columns }, () => ({ value: '' }))
-    );
-    setData(initialData);
+    if (data.length === 0) {
+      // Initialize with empty data
+      const initialData = Array.from({ length: rows }, () => 
+        Array.from({ length: columns }, () => ({ value: '' }))
+      );
+      setData(initialData);
+    }
   }, []);
+
+  // Auto-save effect
+  useEffect(() => {
+    if (!autoSaveEnabled || !needsSaving) return;
+    
+    // Clear any existing timer
+    if (autoSaveTimerRef.current) {
+      window.clearTimeout(autoSaveTimerRef.current);
+    }
+    
+    // Set a new timer for autosave
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      handleSaveSpreadsheet();
+      autoSaveTimerRef.current = null;
+    }, 3000); // Autosave after 3 seconds of inactivity
+    
+    // Cleanup timer on unmount
+    return () => {
+      if (autoSaveTimerRef.current) {
+        window.clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [data, autoSaveEnabled, needsSaving, title]);
 
   // Handle cell value change
   const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
@@ -46,6 +88,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     }
     newData[rowIndex][colIndex] = { value };
     setData(newData);
+    setNeedsSaving(true);
   };
 
   // Add a new row
@@ -54,6 +97,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     newData.push(Array.from({ length: columns }, () => ({ value: '' })));
     setData(newData);
     setRows(rows + 1);
+    setNeedsSaving(true);
     toast.success("Row added");
   };
 
@@ -72,6 +116,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     
     setData(newData);
     setColumns(columns + 1);
+    setNeedsSaving(true);
     toast.success("Column added");
   };
 
@@ -92,6 +137,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     setData(newData);
     setRows(rows - 1);
     setSelectedCell(null);
+    setNeedsSaving(true);
     toast.success("Row deleted");
   };
 
@@ -116,6 +162,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     setData(newData);
     setColumns(columns - 1);
     setSelectedCell(null);
+    setNeedsSaving(true);
     toast.success("Column deleted");
   };
 
@@ -223,8 +270,84 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     toast.success("Spreadsheet exported to CSV");
   };
 
+  // Save spreadsheet
+  const handleSaveSpreadsheet = useCallback(() => {
+    if (data.length === 0) return;
+    
+    try {
+      const currentDate = new Date();
+      const spreadsheetData: SpreadsheetData = {
+        id: spreadsheetId || uuidv4(),
+        title,
+        data,
+        rows,
+        columns,
+        lastModified: currentDate,
+        createdAt: spreadsheetId ? (initialData?.createdAt || currentDate) : currentDate
+      };
+      
+      saveSpreadsheet(spreadsheetData);
+      setSpreadsheetId(spreadsheetData.id);
+      setLastSaved(currentDate);
+      setNeedsSaving(false);
+      
+      // Create document entry if it's a new spreadsheet
+      if (!initialData) {
+        createSpreadsheetDocument(spreadsheetData);
+      }
+      
+      toast.success("Spreadsheet saved");
+    } catch (error) {
+      console.error('Error saving spreadsheet:', error);
+      toast.error('Failed to save spreadsheet');
+    }
+  }, [data, rows, columns, title, spreadsheetId, initialData]);
+
+  // Handle title change
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTitle(e.target.value);
+    setNeedsSaving(true);
+  };
+
   return (
     <div className="flex flex-col border border-gray-300 rounded-md shadow-sm h-full bg-white">
+      <div className="flex items-center justify-between p-2 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <Input
+            value={title}
+            onChange={handleTitleChange}
+            className="w-64 border-gray-300 focus-visible:ring-offset-0"
+            placeholder="Untitled Spreadsheet"
+          />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleSaveSpreadsheet}
+            className={needsSaving ? "border-red-300 text-red-600 hover:bg-red-50" : ""}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {needsSaving ? "Save*" : "Save"}
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-3 mr-2">
+          <div className="flex items-center space-x-2">
+            <Switch 
+              id="autosave" 
+              checked={autoSaveEnabled} 
+              onCheckedChange={setAutoSaveEnabled} 
+            />
+            <Label htmlFor="autosave">Autosave</Label>
+          </div>
+          
+          {lastSaved && (
+            <span className="text-xs text-gray-500">
+              Last saved: {lastSaved.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+      </div>
+      
       <Toolbar 
         onAddRow={handleAddRow}
         onAddColumn={handleAddColumn}

@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Header from '@/components/Layout/Header';
 import Spreadsheet from '@/components/SpreadsheetTable/Spreadsheet';
 import { Input } from '@/components/ui/input';
@@ -7,9 +8,42 @@ import { Button } from '@/components/ui/button';
 import { Save, FileSpreadsheet, Table, Info } from 'lucide-react';
 import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarSeparator, MenubarShortcut, MenubarTrigger } from '@/components/ui/menubar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { getSpreadsheetById, createNewSpreadsheet } from '@/services/spreadsheetService';
+import { toast } from 'sonner';
 
 const SpreadsheetPage = () => {
-  const [spreadsheetName, setSpreadsheetName] = useState('Untitled Spreadsheet');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const spreadsheetId = queryParams.get('id');
+  
+  const [spreadsheetData, setSpreadsheetData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    if (spreadsheetId) {
+      const data = getSpreadsheetById(spreadsheetId);
+      if (data) {
+        setSpreadsheetData(data);
+      } else {
+        toast.error('Spreadsheet not found');
+        // Create a new spreadsheet if not found
+        const newData = createNewSpreadsheet();
+        setSpreadsheetData(newData);
+      }
+    } else {
+      // Create a new spreadsheet if no ID provided
+      const newData = createNewSpreadsheet();
+      setSpreadsheetData(newData);
+    }
+    setLoading(false);
+  }, [spreadsheetId]);
+  
+  const handleNewSpreadsheet = () => {
+    const newData = createNewSpreadsheet();
+    navigate(`/spreadsheet?id=${newData.id}`);
+    window.location.reload(); // Easiest way to reset the state completely
+  };
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col">
@@ -20,22 +54,7 @@ const SpreadsheetPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg shadow-sm border border-gray-100">
               <FileSpreadsheet className="h-5 w-5 text-secondary" />
-              <Input
-                value={spreadsheetName}
-                onChange={(e) => setSpreadsheetName(e.target.value)}
-                className="font-semibold text-lg border-transparent focus:border-gray-300 focus-visible:ring-0 h-9 px-2 py-1 min-w-[240px]"
-              />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" className="ml-2 border-secondary/20 text-secondary hover:text-secondary-foreground hover:bg-secondary/20">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Save spreadsheet</p>
-                </TooltipContent>
-              </Tooltip>
+              <span className="font-semibold text-lg px-2 py-1">DocuScan Spreadsheets</span>
             </div>
             
             <div className="hidden md:flex items-center gap-2">
@@ -50,9 +69,8 @@ const SpreadsheetPage = () => {
             <MenubarMenu>
               <MenubarTrigger className="font-normal text-sm px-3 py-1.5 rounded-md data-[state=open]:bg-accent/50">File</MenubarTrigger>
               <MenubarContent>
-                <MenubarItem>New<MenubarShortcut>⌘N</MenubarShortcut></MenubarItem>
+                <MenubarItem onClick={handleNewSpreadsheet}>New<MenubarShortcut>⌘N</MenubarShortcut></MenubarItem>
                 <MenubarItem>Open<MenubarShortcut>⌘O</MenubarShortcut></MenubarItem>
-                <MenubarItem>Save<MenubarShortcut>⌘S</MenubarShortcut></MenubarItem>
                 <MenubarSeparator />
                 <MenubarItem>Import</MenubarItem>
                 <MenubarItem>Export</MenubarItem>
@@ -93,12 +111,23 @@ const SpreadsheetPage = () => {
         </div>
         
         <div className="spreadsheet-container flex-1">
-          <Spreadsheet initialRows={15} initialColumns={10} />
+          {loading ? (
+            <div className="w-full h-full flex justify-center items-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <Spreadsheet 
+              initialData={spreadsheetData}
+              initialRows={spreadsheetData?.rows || 15} 
+              initialColumns={spreadsheetData?.columns || 10} 
+              spreadsheetTitle={spreadsheetData?.title}
+            />
+          )}
         </div>
         
         <div className="text-xs text-muted-foreground py-3 px-3 bg-white/80 backdrop-blur-sm mt-4 rounded-lg shadow-sm border border-gray-100 flex justify-between">
-          <span>Cells: 150</span>
-          <span>Last modified: {new Date().toLocaleDateString()}</span>
+          <span>Cells: {(spreadsheetData?.rows || 15) * (spreadsheetData?.columns || 10)}</span>
+          <span>Last modified: {spreadsheetData?.lastModified ? new Date(spreadsheetData.lastModified).toLocaleDateString() : new Date().toLocaleDateString()}</span>
         </div>
       </div>
       
