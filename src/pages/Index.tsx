@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Layout/Header';
 import { Button } from '@/components/ui/button';
-import { Camera, Upload, FileSpreadsheet, Plus, FilePdf } from 'lucide-react';
+import { Camera, Upload, FileSpreadsheet, Plus, File } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CameraCapture from '@/components/CameraCapture';
 import DocumentCard from '@/components/DocumentCard';
@@ -27,6 +26,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ArrowDownAZ,
+  ArrowUpAZ,
+  Calendar,
+  CalendarArrowDown,
+  CalendarArrowUp,
+} from "lucide-react";
 
 const Index = () => {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -36,15 +51,21 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('recent');
   const [spreadsheets, setSpreadsheets] = useState<SpreadsheetMetadata[]>([]);
   const [activeContentTab, setActiveContentTab] = useState('documents');
+  const [sortOption, setSortOption] = useState('dateDesc');
 
   useEffect(() => {
     loadDocuments();
     loadSpreadsheets();
   }, []);
 
+  useEffect(() => {
+    sortItems(sortOption);
+  }, [sortOption]);
+
   const loadDocuments = () => {
     const loadedDocuments = getDocuments();
     setDocuments(loadedDocuments);
+    sortItems(sortOption);
   };
 
   const loadSpreadsheets = () => {
@@ -64,14 +85,57 @@ const Index = () => {
         }
       });
       
-      spreadsheetData.sort((a, b) => 
-        new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
-      );
-      
       setSpreadsheets(spreadsheetData);
+      sortItems(sortOption);
     } catch (error) {
       console.error('Error loading spreadsheets:', error);
     }
+  };
+
+  const sortItems = (option: string) => {
+    setSortOption(option);
+    
+    // Sort documents
+    const sortedDocs = [...documents];
+    
+    switch (option) {
+      case 'nameAsc':
+        sortedDocs.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'nameDesc':
+        sortedDocs.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case 'dateAsc':
+        sortedDocs.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        break;
+      case 'dateDesc':
+      default:
+        sortedDocs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        break;
+    }
+    
+    setDocuments(sortedDocs);
+    
+    // Sort spreadsheets
+    const sortedSheets = [...spreadsheets];
+    
+    switch (option) {
+      case 'nameAsc':
+        sortedSheets.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'nameDesc':
+        sortedSheets.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case 'dateAsc':
+        sortedSheets.sort((a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime());
+        break;
+      case 'dateDesc':
+      default:
+        sortedSheets.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
+        break;
+    }
+    
+    setSpreadsheets(sortedSheets);
   };
 
   const handleCapture = async (imageData: string) => {
@@ -172,6 +236,16 @@ const Index = () => {
     return true;
   });
 
+  const getSortIcon = () => {
+    switch(sortOption) {
+      case 'nameAsc': return <ArrowDownAZ className="h-4 w-4" />;
+      case 'nameDesc': return <ArrowUpAZ className="h-4 w-4" />;
+      case 'dateAsc': return <CalendarArrowDown className="h-4 w-4" />;
+      case 'dateDesc': 
+      default: return <CalendarArrowUp className="h-4 w-4" />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col">
       <Header />
@@ -239,6 +313,44 @@ const Index = () => {
             <TabsTrigger value="documents" className="flex-1 max-w-[200px] transition-all duration-300">Documents</TabsTrigger>
             <TabsTrigger value="spreadsheets" className="flex-1 max-w-[200px] transition-all duration-300">Spreadsheets</TabsTrigger>
           </TabsList>
+          
+          <div className="flex justify-between items-center mt-6 mb-4">
+            <div className="flex-1"></div>
+            <Select value={sortOption} onValueChange={sortItems}>
+              <SelectTrigger className="w-[180px] animate-fade-in">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent className="animate-fade-in animate-scale-in">
+                <SelectGroup>
+                  <SelectLabel>Sort by</SelectLabel>
+                  <SelectItem value="nameAsc" className="flex items-center">
+                    <div className="flex items-center">
+                      <ArrowDownAZ className="h-4 w-4 mr-2" />
+                      <span>Name (A-Z)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="nameDesc">
+                    <div className="flex items-center">
+                      <ArrowUpAZ className="h-4 w-4 mr-2" />
+                      <span>Name (Z-A)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="dateAsc">
+                    <div className="flex items-center">
+                      <CalendarArrowDown className="h-4 w-4 mr-2" />
+                      <span>Date (Oldest first)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="dateDesc">
+                    <div className="flex items-center">
+                      <CalendarArrowUp className="h-4 w-4 mr-2" />
+                      <span>Date (Newest first)</span>
+                    </div>
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
           
           <TabsContent value="documents" className="animate-fade-in">
             <Tabs defaultValue="recent" value={activeTab} onValueChange={setActiveTab}>
@@ -340,7 +452,7 @@ const Index = () => {
       {isCapturing && (
         <CameraCapture 
           onCapture={handleCapture} 
-          onClose={() => setIsCapturing(false)} 
+          onClose={() => setIsCapturing(true)} 
         />
       )}
     </div>

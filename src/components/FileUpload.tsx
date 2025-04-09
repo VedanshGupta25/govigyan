@@ -48,13 +48,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
     
     onFileSelected(file);
+    
+    // Reset the file input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
-    <>
+    <div className="flex items-center w-full">
       <Button 
-        variant="outline" 
+        variant="ghost" 
         onClick={() => fileInputRef.current?.click()}
+        className="w-full justify-start px-2 py-1.5 h-auto"
       >
         <Upload className="h-4 w-4 mr-2" />
         {buttonText}
@@ -66,7 +72,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         accept={acceptTypes}
         className="hidden"
       />
-    </>
+    </div>
   );
 };
 
