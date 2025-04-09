@@ -385,7 +385,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
               id="autosave"
               checked={isAutosaveEnabled}
               onCheckedChange={setIsAutosaveEnabled}
-              size="sm"
+              className="scale-75"
             />
             <Label htmlFor="autosave" className="text-xs">Autosave</Label>
           </div>
