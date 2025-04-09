@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Toolbar from './Toolbar';
 import Cell from './Cell';
 import SpreadsheetHeader from './SpreadsheetHeader';
@@ -8,44 +8,162 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { v4 as uuidv4 } from 'uuid';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface SpreadsheetProps {
   initialRows?: number;
   initialColumns?: number;
+  spreadsheetId?: string;
+  spreadsheetName?: string;
+  onSave?: (id: string, name: string, data: CellData[][]) => void;
 }
 
 interface CellData {
   value: string;
+  style?: {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    align?: 'left' | 'center' | 'right';
+    color?: string;
+    bgColor?: string;
+  };
 }
+
+const AUTOSAVE_INTERVAL = 30000; // 30 seconds
 
 const Spreadsheet: React.FC<SpreadsheetProps> = ({ 
   initialRows = 10, 
-  initialColumns = 8 
+  initialColumns = 8,
+  spreadsheetId,
+  spreadsheetName = 'Untitled Spreadsheet',
+  onSave 
 }) => {
   const [rows, setRows] = useState(initialRows);
   const [columns, setColumns] = useState(initialColumns);
   const [data, setData] = useState<CellData[][]>([]);
   const [selectedCell, setSelectedCell] = useState<{ row: number, col: number } | null>(null);
-  const [copiedCell, setCopiedCell] = useState<{ value: string } | null>(null);
+  const [copiedCell, setCopiedCell] = useState<{ value: string; style?: CellData['style'] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [id] = useState<string>(spreadsheetId || uuidv4());
+  const [name, setName] = useState<string>(spreadsheetName);
+  const [isAutosaveEnabled, setIsAutosaveEnabled] = useState<boolean>(true);
+  const [lastSaved, setLastSaved] = useState<Date>(new Date());
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize data grid
   useEffect(() => {
-    // Initialize with empty data
+    // Check if we have existing data in localStorage
+    const savedData = localStorage.getItem(`spreadsheet-data-${id}`);
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        setData(parsedData);
+        setRows(parsedData.length);
+        setColumns(Math.max(...parsedData.map((row: CellData[]) => row.length)));
+      } catch (error) {
+        console.error("Failed to load saved spreadsheet data:", error);
+        initializeEmptyData();
+      }
+    } else {
+      initializeEmptyData();
+    }
+  }, [id]);
+
+  const initializeEmptyData = () => {
     const initialData = Array.from({ length: rows }, () => 
       Array.from({ length: columns }, () => ({ value: '' }))
     );
     setData(initialData);
-  }, []);
+  };
+
+  // Autosave functionality
+  useEffect(() => {
+    if (isAutosaveEnabled) {
+      if (autosaveTimerRef.current) {
+        clearInterval(autosaveTimerRef.current);
+      }
+      
+      autosaveTimerRef.current = setInterval(() => {
+        saveSpreadsheet();
+      }, AUTOSAVE_INTERVAL);
+    } else if (autosaveTimerRef.current) {
+      clearInterval(autosaveTimerRef.current);
+    }
+    
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearInterval(autosaveTimerRef.current);
+      }
+    };
+  }, [isAutosaveEnabled, data, name, id]);
+
+  // Save functionality
+  const saveSpreadsheet = useCallback(() => {
+    try {
+      localStorage.setItem(`spreadsheet-data-${id}`, JSON.stringify(data));
+      localStorage.setItem(`spreadsheet-name-${id}`, name);
+      
+      // Save the spreadsheet ID to a list of all spreadsheets
+      const spreadsheetList = JSON.parse(localStorage.getItem('spreadsheet-list') || '[]');
+      if (!spreadsheetList.includes(id)) {
+        spreadsheetList.push(id);
+        localStorage.setItem('spreadsheet-list', JSON.stringify(spreadsheetList));
+      }
+      
+      // Also save metadata
+      const metadata = {
+        id,
+        name,
+        lastModified: new Date().toISOString(),
+        rowCount: data.length,
+        columnCount: data[0]?.length || 0
+      };
+      localStorage.setItem(`spreadsheet-meta-${id}`, JSON.stringify(metadata));
+      
+      setLastSaved(new Date());
+      
+      if (onSave) {
+        onSave(id, name, data);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Failed to save spreadsheet:", error);
+      return false;
+    }
+  }, [data, id, name, onSave]);
+
+  // Handle manual save
+  const handleSave = () => {
+    if (saveSpreadsheet()) {
+      toast.success("Spreadsheet saved successfully");
+    } else {
+      toast.error("Failed to save spreadsheet");
+    }
+  };
 
   // Handle cell value change
-  const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
+  const handleCellChange = (rowIndex: number, colIndex: number, value: string, style?: CellData['style']) => {
     const newData = [...data];
     if (!newData[rowIndex]) {
       newData[rowIndex] = Array.from({ length: columns }, () => ({ value: '' }));
     }
-    newData[rowIndex][colIndex] = { value };
+    newData[rowIndex][colIndex] = { value, style };
     setData(newData);
+  };
+
+  // Apply style to selected cell
+  const handleApplyStyle = (styleProperty: keyof CellData['style'], value: any) => {
+    if (!selectedCell) return;
+    
+    const { row, col } = selectedCell;
+    const currentCell = data[row]?.[col] || { value: '' };
+    const newStyle = { ...(currentCell.style || {}), [styleProperty]: value };
+    
+    handleCellChange(row, col, currentCell.value, newStyle);
   };
 
   // Add a new row
@@ -128,7 +246,10 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     
     const { row, col } = selectedCell;
     if (data[row] && data[row][col]) {
-      setCopiedCell({ value: data[row][col].value });
+      setCopiedCell({ 
+        value: data[row][col].value,
+        style: data[row][col].style
+      });
       toast.success("Cell copied");
     }
   };
@@ -141,8 +262,26 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     }
     
     const { row, col } = selectedCell;
-    handleCellChange(row, col, copiedCell.value);
+    handleCellChange(row, col, copiedCell.value, copiedCell.style);
     toast.success("Cell pasted");
+  };
+
+  // Handle align changes
+  const handleAlignChange = (align: 'left' | 'center' | 'right') => {
+    handleApplyStyle('align', align);
+  };
+
+  // Handle formatting changes
+  const handleFormatChange = (format: 'bold' | 'italic' | 'underline', value?: boolean) => {
+    if (!selectedCell) return;
+    const { row, col } = selectedCell;
+    const currentCell = data[row]?.[col] || { value: '' };
+    const currentValue = currentCell.style?.[format];
+    
+    // Toggle value if not specified
+    const newValue = value !== undefined ? value : !currentValue;
+    
+    handleApplyStyle(format, newValue);
   };
 
   // Handle import CSV
@@ -216,7 +355,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
     const element = document.createElement('a');
     const file = new Blob([csvContent], {type: 'text/csv'});
     element.href = URL.createObjectURL(file);
-    element.download = `spreadsheet-${new Date().toISOString().split('T')[0]}.csv`;
+    element.download = `${name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -225,6 +364,37 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
 
   return (
     <div className="flex flex-col border border-gray-300 rounded-md shadow-sm h-full bg-white">
+      <div className="flex items-center justify-between p-2 bg-white/90 border-b border-gray-200 sticky top-0 z-20">
+        <div className="flex items-center gap-2 flex-1">
+          <Input 
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="max-w-[240px] font-medium border-transparent focus:border-gray-300 focus-visible:ring-0"
+            placeholder="Spreadsheet name"
+          />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleSave}
+            className="text-primary hover:bg-primary/10"
+          >
+            Save
+          </Button>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground ml-4">
+            <Switch
+              id="autosave"
+              checked={isAutosaveEnabled}
+              onCheckedChange={setIsAutosaveEnabled}
+              size="sm"
+            />
+            <Label htmlFor="autosave" className="text-xs">Autosave</Label>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {lastSaved && `Last saved: ${lastSaved.toLocaleTimeString()}`}
+        </div>
+      </div>
+      
       <Toolbar 
         onAddRow={handleAddRow}
         onAddColumn={handleAddColumn}
@@ -234,6 +404,8 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
         onPaste={handlePaste}
         onImport={handleImport}
         onExport={handleExport}
+        onAlignChange={handleAlignChange}
+        onFormatChange={handleFormatChange}
         canDeleteRow={rows > 1 && selectedCell !== null}
         canDeleteColumn={columns > 1 && selectedCell !== null}
       />
@@ -246,7 +418,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
             {Array.from({ length: rows }).map((_, rowIndex) => (
               <div key={rowIndex} className="flex">
                 {/* Row header */}
-                <div className="w-10 h-8 bg-gray-100 border border-gray-300 flex items-center justify-center font-medium">
+                <div className="w-10 h-8 bg-secondary/10 border border-gray-300 flex items-center justify-center font-medium text-secondary-foreground">
                   {rowIndex + 1}
                 </div>
                 
@@ -255,7 +427,8 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
                   <Cell
                     key={`${rowIndex}-${colIndex}`}
                     value={data[rowIndex]?.[colIndex]?.value || ''}
-                    onChange={(value) => handleCellChange(rowIndex, colIndex, value)}
+                    style={data[rowIndex]?.[colIndex]?.style}
+                    onChange={(value) => handleCellChange(rowIndex, colIndex, value, data[rowIndex]?.[colIndex]?.style)}
                     rowIndex={rowIndex}
                     colIndex={colIndex}
                     isSelected={selectedCell?.row === rowIndex && selectedCell?.col === colIndex}

@@ -115,4 +115,41 @@
   .table-glass-effect {
     @apply backdrop-blur-sm bg-white/90;
   }
+
+  /* Additional styles for enhanced Excel-like UI */
+  .spreadsheet-header {
+    @apply bg-gradient-to-b from-slate-100 to-slate-50 text-slate-700;
+  }
+
+  .cell-bold {
+    @apply font-bold;
+  }
+  
+  .cell-italic {
+    @apply italic;
+  }
+  
+  .cell-underline {
+    @apply underline;
+  }
+  
+  .cell-align-left {
+    @apply text-left;
+  }
+  
+  .cell-align-center {
+    @apply text-center;
+  }
+  
+  .cell-align-right {
+    @apply text-right;
+  }
+  
+  .cell-formula {
+    @apply bg-blue-50/30 text-blue-700;
+  }
+  
+  .spreadsheet-ui {
+    @apply bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden;
+  }
 }

@@ -15,6 +15,7 @@ const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = ({ columns }) => {
         <div 
           key={index} 
           className="min-w-[80px] h-8 bg-secondary/20 border border-gray-300 flex items-center justify-center font-medium text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/30"
+          title={`Column ${String.fromCharCode(65 + index)}`}
         >
           {String.fromCharCode(65 + index)}
         </div>

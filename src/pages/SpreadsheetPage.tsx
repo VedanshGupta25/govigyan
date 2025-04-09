@@ -1,15 +1,53 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Layout/Header';
 import Spreadsheet from '@/components/SpreadsheetTable/Spreadsheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Save, FileSpreadsheet, Table, Info } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Save, FileSpreadsheet, Table, Info, ChevronLeft } from 'lucide-react';
 import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarSeparator, MenubarShortcut, MenubarTrigger } from '@/components/ui/menubar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
+
+interface SpreadsheetMetadata {
+  id: string;
+  name: string;
+  lastModified: string;
+  rowCount: number;
+  columnCount: number;
+}
 
 const SpreadsheetPage = () => {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [spreadsheetName, setSpreadsheetName] = useState('Untitled Spreadsheet');
+  const [spreadsheetData, setSpreadsheetData] = useState<any[][]>([]);
+  
+  useEffect(() => {
+    if (id) {
+      // Load spreadsheet name if we have an ID
+      const savedName = localStorage.getItem(`spreadsheet-name-${id}`);
+      if (savedName) {
+        setSpreadsheetName(savedName);
+      }
+    }
+  }, [id]);
+  
+  const handleSaveSpreadsheet = (id: string, name: string, data: any[][]) => {
+    // This function will be called by the Spreadsheet component when saving
+    setSpreadsheetName(name);
+    setSpreadsheetData(data);
+  };
+  
+  const createNewSpreadsheet = () => {
+    navigate('/spreadsheet');
+    window.location.reload(); // Refresh to create a new spreadsheet
+  };
+  
+  const openSpreadsheet = (spreadsheetId: string) => {
+    navigate(`/spreadsheet/${spreadsheetId}`);
+  };
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col">
@@ -19,23 +57,17 @@ const SpreadsheetPage = () => {
         <div className="flex flex-col space-y-2 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg shadow-sm border border-gray-100">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate('/')}
+                className="mr-1"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
               <FileSpreadsheet className="h-5 w-5 text-secondary" />
-              <Input
-                value={spreadsheetName}
-                onChange={(e) => setSpreadsheetName(e.target.value)}
-                className="font-semibold text-lg border-transparent focus:border-gray-300 focus-visible:ring-0 h-9 px-2 py-1 min-w-[240px]"
-              />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" className="ml-2 border-secondary/20 text-secondary hover:text-secondary-foreground hover:bg-secondary/20">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Save spreadsheet</p>
-                </TooltipContent>
-              </Tooltip>
+              <span className="font-semibold text-lg">{spreadsheetName}</span>
             </div>
             
             <div className="hidden md:flex items-center gap-2">
@@ -50,12 +82,19 @@ const SpreadsheetPage = () => {
             <MenubarMenu>
               <MenubarTrigger className="font-normal text-sm px-3 py-1.5 rounded-md data-[state=open]:bg-accent/50">File</MenubarTrigger>
               <MenubarContent>
-                <MenubarItem>New<MenubarShortcut>⌘N</MenubarShortcut></MenubarItem>
-                <MenubarItem>Open<MenubarShortcut>⌘O</MenubarShortcut></MenubarItem>
-                <MenubarItem>Save<MenubarShortcut>⌘S</MenubarShortcut></MenubarItem>
+                <MenubarItem onClick={createNewSpreadsheet}>New<MenubarShortcut>⌘N</MenubarShortcut></MenubarItem>
+                <MenubarItem onClick={() => {
+                  const spreadsheetList = JSON.parse(localStorage.getItem('spreadsheet-list') || '[]');
+                  if (spreadsheetList.length > 0) {
+                    const lastId = spreadsheetList[0];
+                    openSpreadsheet(lastId);
+                  } else {
+                    toast.error("No spreadsheets found");
+                  }
+                }}>Open Recent</MenubarItem>
                 <MenubarSeparator />
-                <MenubarItem>Import</MenubarItem>
-                <MenubarItem>Export</MenubarItem>
+                <MenubarItem>Import<MenubarShortcut>⌘I</MenubarShortcut></MenubarItem>
+                <MenubarItem>Export<MenubarShortcut>⌘E</MenubarShortcut></MenubarItem>
               </MenubarContent>
             </MenubarMenu>
             
@@ -92,12 +131,18 @@ const SpreadsheetPage = () => {
           </Menubar>
         </div>
         
-        <div className="spreadsheet-container flex-1">
-          <Spreadsheet initialRows={15} initialColumns={10} />
+        <div className="spreadsheet-container flex-1 bg-white rounded-lg overflow-hidden shadow-xl border border-gray-200">
+          <Spreadsheet 
+            initialRows={15} 
+            initialColumns={10} 
+            spreadsheetId={id}
+            spreadsheetName={spreadsheetName}
+            onSave={handleSaveSpreadsheet}
+          />
         </div>
         
         <div className="text-xs text-muted-foreground py-3 px-3 bg-white/80 backdrop-blur-sm mt-4 rounded-lg shadow-sm border border-gray-100 flex justify-between">
-          <span>Cells: 150</span>
+          <span>Cells: {spreadsheetData.length > 0 ? spreadsheetData.length * spreadsheetData[0].length : 150}</span>
           <span>Last modified: {new Date().toLocaleDateString()}</span>
         </div>
       </div>
