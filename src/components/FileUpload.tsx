@@ -6,9 +6,15 @@ import { toast } from 'sonner';
 
 interface FileUploadProps {
   onFileSelected: (file: File) => void;
+  acceptTypes?: string;
+  buttonText?: string;
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({ onFileSelected }) => {
+const FileUpload: React.FC<FileUploadProps> = ({ 
+  onFileSelected, 
+  acceptTypes = "image/*", 
+  buttonText = "Upload Image" 
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -20,9 +26,18 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelected }) => {
     
     const file = files[0];
     
-    // Check file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+    // Check file type based on accept parameter
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf';
+    
+    if (acceptTypes.includes('image/*') && !isImage && !isPdf) {
+      toast.error('Please select an image or PDF file');
+      return;
+    } else if (acceptTypes === 'application/pdf' && !isPdf) {
+      toast.error('Please select a PDF file');
+      return;
+    } else if (!isImage && !isPdf) {
+      toast.error('Unsupported file type');
       return;
     }
     
@@ -40,16 +55,15 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelected }) => {
       <Button 
         variant="outline" 
         onClick={() => fileInputRef.current?.click()}
-        className="w-full"
       >
         <Upload className="h-4 w-4 mr-2" />
-        Upload Image
+        {buttonText}
       </Button>
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept="image/*"
+        accept={acceptTypes}
         className="hidden"
       />
     </>

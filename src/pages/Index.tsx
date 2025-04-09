@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Layout/Header';
 import { Button } from '@/components/ui/button';
-import { Camera, Upload, FileSpreadsheet, Plus } from 'lucide-react';
+import { Camera, Upload, FileSpreadsheet, Plus, FilePdf } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CameraCapture from '@/components/CameraCapture';
 import DocumentCard from '@/components/DocumentCard';
@@ -20,6 +21,12 @@ import {
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Index = () => {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -166,24 +173,59 @@ const Index = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col">
       <Header />
       
       <div className="container max-w-4xl mx-auto p-4 flex-1">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-navy-900">My Content</h2>
-          <div className="flex space-x-2">
+          <h2 className="text-2xl font-semibold text-navy-900 animate-fade-in">My Content</h2>
+          <div className="flex space-x-2 animate-fade-in">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsCapturing(true)}
               disabled={loading}
+              className="hover:scale-105 transition-transform duration-200"
             >
               <Camera className="h-4 w-4 mr-2" />
               Scan
             </Button>
-            <FileUpload onFileSelected={handleFileUpload} />
-            <Button variant="outline" size="sm" asChild>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="hover:scale-105 transition-transform duration-200"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="animate-fade-in animate-scale-in">
+                <DropdownMenuItem>
+                  <FileUpload 
+                    onFileSelected={handleFileUpload} 
+                    acceptTypes="image/*"
+                    buttonText="Upload Image"
+                  />
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <FileUpload 
+                    onFileSelected={handleFileUpload} 
+                    acceptTypes="application/pdf"
+                    buttonText="Upload PDF"
+                  />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              asChild
+              className="hover:scale-105 transition-transform duration-200"
+            >
               <Link to="/spreadsheet">
                 <Plus className="h-4 w-4 mr-2" />
                 New Sheet
@@ -192,18 +234,18 @@ const Index = () => {
           </div>
         </div>
         
-        <Tabs defaultValue="documents" value={activeContentTab} onValueChange={setActiveContentTab} className="mb-6">
+        <Tabs defaultValue="documents" value={activeContentTab} onValueChange={setActiveContentTab} className="mb-6 animate-fade-in">
           <TabsList className="w-full flex justify-start">
-            <TabsTrigger value="documents" className="flex-1 max-w-[200px]">Documents</TabsTrigger>
-            <TabsTrigger value="spreadsheets" className="flex-1 max-w-[200px]">Spreadsheets</TabsTrigger>
+            <TabsTrigger value="documents" className="flex-1 max-w-[200px] transition-all duration-300">Documents</TabsTrigger>
+            <TabsTrigger value="spreadsheets" className="flex-1 max-w-[200px] transition-all duration-300">Spreadsheets</TabsTrigger>
           </TabsList>
           
           <TabsContent value="documents" className="animate-fade-in">
             <Tabs defaultValue="recent" value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-6">
-                <TabsTrigger value="recent">Recent</TabsTrigger>
-                <TabsTrigger value="favorites">Favorites</TabsTrigger>
-                <TabsTrigger value="all">All Documents</TabsTrigger>
+                <TabsTrigger value="recent" className="transition-all duration-200">Recent</TabsTrigger>
+                <TabsTrigger value="favorites" className="transition-all duration-200">Favorites</TabsTrigger>
+                <TabsTrigger value="all" className="transition-all duration-200">All Documents</TabsTrigger>
               </TabsList>
               
               <TabsContent value="recent" className="animate-fade-in">
@@ -225,6 +267,7 @@ const Index = () => {
                         extractedText={doc.extractedText}
                         createdAt={doc.createdAt}
                         onClick={handleDocumentClick}
+                        onDelete={() => handleDeleteDocument(doc.id)}
                       />
                     ))}
                   </div>
@@ -249,6 +292,7 @@ const Index = () => {
                         extractedText={doc.extractedText}
                         createdAt={doc.createdAt}
                         onClick={handleDocumentClick}
+                        onDelete={() => handleDeleteDocument(doc.id)}
                       />
                     ))}
                   </div>
@@ -266,15 +310,16 @@ const Index = () => {
                   <SpreadsheetCard
                     key={sheet.id}
                     spreadsheet={sheet}
+                    onDelete={handleDeleteSpreadsheet}
                   />
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-64 bg-white/80 rounded-xl p-8 text-center border border-gray-200">
-                <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4" />
+              <div className="flex flex-col items-center justify-center h-64 bg-white/80 rounded-xl p-8 text-center border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300">
+                <FileSpreadsheet className="h-12 w-12 text-muted-foreground mb-4 animate-pulse" />
                 <h3 className="text-lg font-medium mb-2">No spreadsheets yet</h3>
                 <p className="text-muted-foreground mb-6">Create a new spreadsheet to get started</p>
-                <Button asChild>
+                <Button asChild className="hover:scale-105 transition-transform duration-200">
                   <Link to="/spreadsheet">
                     <Plus className="h-4 w-4 mr-2" />
                     Create Spreadsheet
@@ -286,7 +331,7 @@ const Index = () => {
         </Tabs>
       </div>
       
-      <footer className="bg-white border-t border-gray-200 py-4 text-center text-sm text-gray-500">
+      <footer className="bg-white border-t border-gray-200 py-4 text-center text-sm text-gray-500 animate-fade-in">
         <div className="container mx-auto">
           DocuScan &copy; {new Date().getFullYear()} | All data is stored locally
         </div>
